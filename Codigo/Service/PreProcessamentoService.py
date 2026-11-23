@@ -34,13 +34,35 @@ class PreProcessamentoService:
         visiveis = notas_teste.drop(escondidas.index)
         return visiveis, escondidas
 
-    # TODO: Implementar processamento das notas médias por gênero de filme para
-    #       cada usuário. Ainda precisa ser considerado como lidar nas situações
-    #       em que o usuário avaliou poucos filmes de um mesmo gênero, pois isso
-    #       pode inflar a média daquele gênero.
-    def vetor_genero(
+    def matriz_generos(
         self,
         notas: pd.DataFrame,
         generos_filmes: pd.DataFrame,
     ) -> pd.DataFrame:
-        pass
+        """Calcula a nota média por gênero de filme para cada usuário.
+
+        Gêneros não avaliados pelo usuário têm seus valores ausentes (NaN)
+        preenchidos com a média geral de todas as avaliações dadas por ele.
+
+        Args:
+            notas: Tabela com colunas ['user_id', 'movie_id', 'rating'].
+            generos_filmes: Tabela com pares ['movie_id', 'genre'].
+
+        Returns:
+            DataFrame indexado por 'user_id', contendo 18 colunas correspondentes
+            aos gêneros e as respectivas notas médias de cada usuário.
+        """
+        notas_com_genero = notas.merge(generos_filmes, on="movie_id")
+        
+        matriz = notas_com_genero.pivot_table(
+            index="user_id",
+            columns="genre",
+            values="rating",
+            aggfunc="mean",
+        )
+        matriz = matriz.reindex(columns=GENEROS)
+        
+        media_geral_usuario = notas.groupby("user_id")["rating"].mean()
+        matriz_preenchida = matriz.T.fillna(media_geral_usuario).T
+
+        return matriz_preenchida
