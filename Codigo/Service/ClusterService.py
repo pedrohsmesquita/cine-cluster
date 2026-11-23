@@ -6,6 +6,7 @@ kmeans.fit(matriz_usuarios)
 silhueta = silhouette_score(matriz_usuarios, kmeans.labels_)
 
 def avaliar_k
+(
     self,
         matriz_usuarios: pd.DataFrame,
         k_min: int = 2,
