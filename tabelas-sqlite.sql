@@ -1,6 +1,6 @@
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id     INTEGER PRIMARY KEY,
     gender      TEXT    NOT NULL CHECK (gender IN ('M','F')),
     age         INTEGER NOT NULL,
@@ -8,31 +8,31 @@ CREATE TABLE users (
     zip_code    TEXT
 );
 
-CREATE TABLE movies (
+CREATE TABLE IF NOT EXISTS movies (
     movie_id    INTEGER PRIMARY KEY,
     title       TEXT    NOT NULL
 );
 
 -- Essa tabela é derivada da informação do filme e de seus gêneros
-CREATE TABLE movie_genres (
+CREATE TABLE IF NOT EXISTS movie_genres (
     movie_id    INTEGER NOT NULL REFERENCES movies(movie_id),
     genre       TEXT    NOT NULL,
     PRIMARY KEY (movie_id, genre)
 );
 
-CREATE INDEX idx_mg_genre ON movie_genres(genre)
+CREATE INDEX IF NOT EXISTS idx_mg_genre ON movie_genres(genre);
 
-CREATE TABLE ratings (
+CREATE TABLE IF NOT EXISTS ratings (
     user_id     INTEGER NOT NULL REFERENCES users(user_id),
     movie_id    INTEGER NOT NULL REFERENCES movies(movie_id),
     rating      INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
     timestamp   INTEGER NOT NULL,
     PRIMARY KEY (user_id, movie_id)
 );
-CREATE INDEX idx_ratings_movie ON ratings(movie_id);
+CREATE INDEX IF NOT EXISTS idx_ratings_movie ON ratings(movie_id);
 
 -- ===== Experimentos =====
-CREATE TABLE experiments (
+CREATE TABLE IF NOT EXISTS experiments (
     experiment_id  INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at     TEXT    NOT NULL,
     seed           INTEGER NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE experiments (
     model_path     TEXT
 );
 
-CREATE TABLE split (
+CREATE TABLE IF NOT EXISTS split (
     user_id        INTEGER PRIMARY KEY REFERENCES users(user_id),
     subset         TEXT NOT NULL CHECK (subset IN ('train', 'test'))
 );
@@ -53,7 +53,7 @@ CREATE TABLE split (
 -- experiments deve ser criado (com o melhor k) e, por fim, deve ser registrado
 -- em k_selection os valores da silhueta e do wcss para cada k referente ao
 -- experimento criado, permitindo traçar o gráfico de silhueta e cotovelo.
-CREATE TABLE k_selection (
+CREATE TABLE IF NOT EXISTS k_selection (
     experiment_id  INTEGER NOT NULL REFERENCES experiments(experiment_id),
     k              INTEGER NOT NULL,
     silhouette     REAL    NOT NULL,
@@ -61,14 +61,14 @@ CREATE TABLE k_selection (
     PRIMARY KEY (experiment_id, k)
 );
 
-CREATE TABLE user_cluster (
+CREATE TABLE IF NOT EXISTS user_cluster (
     experiment_id  INTEGER NOT NULL REFERENCES experiments(experiment_id),
     user_id        INTEGER NOT NULL REFERENCES users(user_id),
     cluster_id     INTEGER NOT NULL,
     PRIMARY KEY (experiment_id, user_id)
 );
 
-CREATE TABLE centroids (
+CREATE TABLE IF NOT EXISTS centroids (
     experiment_id  INTEGER NOT NULL REFERENCES experiments(experiment_id),
     cluster_id     INTEGER NOT NULL,
     n_users        INTEGER NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE centroids (
     PRIMARY KEY (experiment_id, cluster_id)
 );
 
-CREATE TABLE movie_cluster_stats (
+CREATE TABLE IF NOT EXISTS movie_cluster_stats (
     experiment_id  INTEGER NOT NULL REFERENCES experiments(experiment_id),
     movie_id       INTEGER NOT NULL REFERENCES movies(movie_id),
     cluster_id     INTEGER NOT NULL,
@@ -89,7 +89,7 @@ CREATE TABLE movie_cluster_stats (
 );
 
 -- ===== Avaliação =====
-CREATE TABLE results (
+CREATE TABLE IF NOT EXISTS results (
     result_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     experiment_id   INTEGER NOT NULL REFERENCES experiments(experiment_id),
     method          TEXT    NOT NULL,   -- 'kmeans' - estimativa da nota do filme veio do cluster. 'baseline_media_filme' - estimativa da nota do filme veio do conjunto treino inteiro. kmeans precisa ter um mae menor.
