@@ -1,24 +1,24 @@
+import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-kmeans = KMeans(n_clusters=k, random_state=seed, n_init=10)
-kmeans.fit(matriz_usuarios)
-silhueta = silhouette_score(matriz_usuarios, kmeans.labels_)
 
-def avaliar_k
-(
-    self,
+class ClusterService:
+    def avaliar_k(
+        self,
         matriz_usuarios: pd.DataFrame,
         k_min: int = 2,
         k_max: int = 15,
         seed: int = 42,
-) -> pd.DataFrame:
-    """Avalia diferentes valores de k usando Silhueta e Cotovelo.
+    ) -> pd.DataFrame:
+        """Avalia diferentes valores de k usando Silhueta e Cotovelo.
+
         Args:
             matriz_usuarios: DataFrame indexado por user_id com os 18 gêneros.
             k_min: Valor mínimo de clusters a ser testado (padrão: 2).
             k_max: Valor máximo de clusters a ser testado (padrão: 15).
             seed: Semente de aleatoriedade para reprodutibilidade.
+
         Returns:
             DataFrame com as colunas ['k', 'wcss', 'silhouette'].
         """
@@ -63,7 +63,7 @@ def avaliar_k
         """
         # 1. Instancia o algoritmo com o k escolhido, semente fixa e 10 inicializações
         kmeans = KMeans(n_clusters=k, random_state=seed, n_init=10)
-        
+
         # 2. Executa o agrupamento (ajuste dos centróides) com base nos dados dos usuários
         kmeans.fit(matriz_usuarios)
 
@@ -87,7 +87,7 @@ def avaliar_k
             cluster_usuarios["cluster_id"].value_counts()
         )
 
-        # 7. Formata os nomes das colunas para letras minúsculas e sem caracteres especiais para não dar BO
+        # 7. Formata os nomes das colunas para letras minúsculas e sem caracteres especiais
         #    (ex: "Film-Noir" -> "film_noir", "Children's" -> "childrens") para coincidir com o schema SQL
         df_centroides.columns = [
             col.lower().replace("-", "_").replace("'", "")
