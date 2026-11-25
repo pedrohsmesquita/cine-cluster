@@ -38,15 +38,20 @@ class PreProcessamentoService:
         self,
         notas: pd.DataFrame,
         generos_filmes: pd.DataFrame,
+        preencher_com_zero: bool = False
     ) -> pd.DataFrame:
         """Calcula a nota média por gênero de filme para cada usuário.
 
-        Gêneros não avaliados pelo usuário têm seus valores ausentes (NaN)
-        preenchidos com a média geral de todas as avaliações dadas por ele.
+        Permite escolher a estratégia de tratamento para gêneros não avaliados:
+        preenchimento com o valor neutro 0.0 ou com a média geral de avaliações
+        dadas pelo próprio usuário.
 
         Args:
             notas: Tabela com colunas ['user_id', 'movie_id', 'rating'].
             generos_filmes: Tabela com pares ['movie_id', 'genre'].
+            preencher_com_zero: Se True, preenche gêneros não avaliados com 0.0.
+                Se False, preenche com a média geral de notas do próprio usuário
+                (padrão: False).
 
         Returns:
             DataFrame indexado por 'user_id', contendo 18 colunas correspondentes
@@ -61,8 +66,11 @@ class PreProcessamentoService:
             aggfunc="mean",
         )
         matriz = matriz.reindex(columns=GENEROS)
-        
-        media_geral_usuario = notas.groupby("user_id")["rating"].mean()
-        matriz_preenchida = matriz.T.fillna(media_geral_usuario).T
+
+        if preencher_com_zero:
+            matriz_preenchida = matriz.fillna(0.0)
+        else:
+            media_geral_usuario = notas.groupby("user_id")["rating"].mean()
+            matriz_preenchida = matriz.T.fillna(media_geral_usuario).T
 
         return matriz_preenchida
