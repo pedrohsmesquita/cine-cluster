@@ -33,32 +33,33 @@ class PreProcessamentoService:
         )
         visiveis = notas_teste.drop(escondidas.index)
         return visiveis, escondidas
-
+        
     def matriz_generos(
         self,
         notas: pd.DataFrame,
         generos_filmes: pd.DataFrame,
-        preencher_com_zero: bool = False
+        preencher_com_zero: bool = False,
+        centralizar: bool = False,
     ) -> pd.DataFrame:
         """Calcula a nota média por gênero de filme para cada usuário.
 
-        Permite escolher a estratégia de tratamento para gêneros não avaliados:
-        preenchimento com o valor neutro 0.0 ou com a média geral de avaliações
-        dadas pelo próprio usuário.
+        Permite configurar o pré-processamento para testar diferentes hipóteses:
+        - Estratégia de preenchimento para gêneros não avaliados (0.0 vs média do usuário).
+        - Centralização pela média geral do usuário (notas relativas).
 
         Args:
             notas: Tabela com colunas ['user_id', 'movie_id', 'rating'].
             generos_filmes: Tabela com pares ['movie_id', 'genre'].
-            preencher_com_zero: Se True, preenche gêneros não avaliados com 0.0.
-                Se False, preenche com a média geral de notas do próprio usuário
-                (padrão: False).
+            preencher_com_zero: Se True, preenche gêneros ausentes com 0.0 puro.
+                Se False, usa a média de avaliações do próprio usuário (padrão: False).
+            centralizar: Se True, subtrai a média geral do usuário de todas as notas,
+                transformando a escala em preferências relativas (padrão: False).
 
         Returns:
-            DataFrame indexado por 'user_id', contendo 18 colunas correspondentes
-            aos gêneros e as respectivas notas médias de cada usuário.
+            DataFrame indexado por 'user_id' com 18 colunas correspondentes aos gêneros.
         """
+        # 1. Cruzar notas com gêneros e criar a grade (usuário x gênero)
         notas_com_genero = notas.merge(generos_filmes, on="movie_id")
-        
         matriz = notas_com_genero.pivot_table(
             index="user_id",
             columns="genre",
@@ -67,10 +68,17 @@ class PreProcessamentoService:
         )
         matriz = matriz.reindex(columns=GENEROS)
 
+        # 2. Calcular a média geral de cada usuário (caso seja necessária)
+        media_geral_usuario = notas.groupby("user_id")["rating"].mean()
+
+        # 3. Tratar valores ausentes (NaN)
         if preencher_com_zero:
             matriz_preenchida = matriz.fillna(0.0)
         else:
-            media_geral_usuario = notas.groupby("user_id")["rating"].mean()
             matriz_preenchida = matriz.T.fillna(media_geral_usuario).T
+
+        # 4. Centralizar pela média do usuário (se solicitado)
+        if centralizar:
+            matriz_preenchida = matriz_preenchida.sub(media_geral_usuario, axis=0)
 
         return matriz_preenchida
