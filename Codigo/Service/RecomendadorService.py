@@ -127,19 +127,34 @@ class RecomendadorService:
         mae_base = (pred_base["rating"] - pred_base["avg_rating"]).abs().mean()
         cov_base = len(pred_base) / total_escondidas if total_escondidas > 0 else 0.0
 
+        # 3. Interseção: notas que os DOIS métodos conseguiram estimar
+        chaves = ["user_id", "movie_id"]
+        comuns = pred_kmeans[chaves].merge(pred_base[chaves], on=chaves)
+
+        k_comum = pred_kmeans.merge(comuns, on=chaves)
+        b_comum = pred_base.merge(comuns, on=chaves)
+
+        mae_kmeans_comum = (k_comum["rating"] - k_comum["avg_rating"]).abs().mean()
+        mae_base_comum = (b_comum["rating"] - b_comum["avg_rating"]).abs().mean()
+        n_comum = len(comuns)
+
         return pd.DataFrame([
             {
                 "method": "kmeans",
                 "mae": float(mae_kmeans),
+                "mae_common": float(mae_kmeans_comum),
                 "coverage": float(cov_kmeans),
                 "n_users": int(n_usuarios),
                 "n_ratings": int(len(pred_kmeans)),
+                "n_common": int(n_comum),
             },
             {
                 "method": "baseline_media_filme",
                 "mae": float(mae_base),
+                "mae_common": float(mae_base_comum),
                 "coverage": float(cov_base),
                 "n_users": int(n_usuarios),
                 "n_ratings": int(len(pred_base)),
+                "n_common": int(n_comum),
             },
         ])

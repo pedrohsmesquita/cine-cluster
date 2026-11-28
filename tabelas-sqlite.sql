@@ -97,5 +97,7 @@ CREATE TABLE IF NOT EXISTS results (
     coverage        REAL,           --  Porcentagem das notas escondidas que o sistema conseguiu dar predizer. É uma métrica para não deixar a média do erro ser o único peso de avaliação do modelo.
     n_users         INTEGER,
     n_ratings       INTEGER,
+    mae_common  REAL,      -- MAE só nas notas que os dois métodos estimaram
+    n_common    INTEGER,   -- tamanho dessa interseção (igual nas duas linhas)
     UNIQUE (experiment_id, method)
 );
