@@ -38,12 +38,14 @@ CREATE TABLE IF NOT EXISTS experiments (
     seed           INTEGER NOT NULL,
     k_clusters     INTEGER NOT NULL,
     min_ratings    INTEGER NOT NULL,
-    model_path     TEXT
+    model_path     TEXT,
+    fill_zero INTEGER NOT NULL CHECK (fill_zero IN (0, 1)),
+    centered INTEGER NOT NULL CHECK (centered IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS split (
     user_id        INTEGER PRIMARY KEY REFERENCES users(user_id),
-    subset         TEXT NOT NULL CHECK (subset IN ('train', 'test'))
+    subset         TEXT NOT NULL CHECK (subset IN ('train', 'validation', 'test'))
 );
 
 -- ===== Resultados do treino (todos ligados a um experimento) =====
@@ -92,12 +94,13 @@ CREATE TABLE IF NOT EXISTS movie_cluster_stats (
 CREATE TABLE IF NOT EXISTS results (
     result_id       INTEGER PRIMARY KEY AUTOINCREMENT,
     experiment_id   INTEGER NOT NULL REFERENCES experiments(experiment_id),
-    method          TEXT    NOT NULL,   -- 'kmeans' - estimativa da nota do filme veio do cluster. 'baseline_media_filme' - estimativa da nota do filme veio do conjunto treino inteiro. kmeans precisa ter um mae menor.
-    mae             REAL,           -- Calcula a média do erro absoluto das estimativas das notas escondidas dos usuários do conjunto teste
+    method          TEXT    NOT NULL,   -- 'kmeans' - estimativa da nota do filme veio do cluster. 'baseline_media_filme' - estimativa da nota do filme veio do conjunto treino inteiro. hipótese: kmeans precisa ter um mae menor.
+    eval_subset TEXT NOT NULL CHECK (eval_subset IN ('validation', 'test')),
+    mae             REAL,
     coverage        REAL,           --  Porcentagem das notas escondidas que o sistema conseguiu dar predizer. É uma métrica para não deixar a média do erro ser o único peso de avaliação do modelo.
     n_users         INTEGER,
     n_ratings       INTEGER,
     mae_common  REAL,      -- MAE só nas notas que os dois métodos estimaram
     n_common    INTEGER,   -- tamanho dessa interseção (igual nas duas linhas)
-    UNIQUE (experiment_id, method)
+    UNIQUE (experiment_id, method, eval_subset)
 );
