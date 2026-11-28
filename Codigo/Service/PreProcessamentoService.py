@@ -45,7 +45,8 @@ class PreProcessamentoService:
 
         Permite configurar o pré-processamento para testar diferentes hipóteses:
         - Estratégia de preenchimento para gêneros não avaliados (0.0 vs média do usuário).
-        - Centralização pela média geral do usuário (notas relativas).
+        - Centralização pela média geral do usuário (notas relativas). Quando 'centralizar' é
+        True, o preenchimento deixa de importar, pois os não avaliados serão 0 (neutro).
 
         Args:
             notas: Tabela com colunas ['user_id', 'movie_id', 'rating'].
@@ -71,14 +72,12 @@ class PreProcessamentoService:
         # 2. Calcular a média geral de cada usuário (caso seja necessária)
         media_geral_usuario = notas.groupby("user_id")["rating"].mean()
 
-        # 3. Tratar valores ausentes (NaN)
-        if preencher_com_zero:
-            matriz_preenchida = matriz.fillna(0.0)
-        else:
-            matriz_preenchida = matriz.T.fillna(media_geral_usuario).T
-
-        # 4. Centralizar pela média do usuário (se solicitado)
+        # 3. Centralizar pela média do usuário (se solicitado)
         if centralizar:
-            matriz_preenchida = matriz_preenchida.sub(media_geral_usuario, axis=0)
+            return matriz.sub(media_geral_usuario, axis=0).fillna(0.0)
 
-        return matriz_preenchida
+        # 4. Tratar valores ausentes (NaN)
+        if preencher_com_zero:
+            return matriz.fillna(0.0)
+
+        return matriz.where(matriz.notna(), media_geral_usuario, axis=0)
