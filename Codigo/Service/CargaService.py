@@ -10,11 +10,15 @@ class CargaService:
             conn: sqlite3.Connection,
             split_seed: int = 67,
             test_size: float = 0.2,
+            val_seed: int = 11,
+            val_size: float = 0.2,
         ):
             self.conn = conn
             self.conn.execute("PRAGMA foreign_keys = ON")
             self.split_seed = split_seed
             self.test_size = test_size
+            self.val_seed = val_seed
+            self.val_size = val_size
 
     def criar_schema(self, caminho_sql: str) -> None:
         """Executa o arquivo .sql que cria as tabelas.
@@ -122,17 +126,20 @@ class CargaService:
         """
         return self.conn.execute("SELECT COUNT(*) FROM split").fetchone()[0] > 0
     
-    def _criar_tabela_split(self, treino: list, teste: list) -> None:
+    def _criar_tabela_split(self, treino: list, validacao: list, teste: list) -> None:
         """Cria a tabela em memória com dados rotulados para armazenagem no banco de dados.
     
         Args:
             treino: lista com ids dos usuários do conjunto treino
+            validacao: lista com ids dos usuários do conjunto validação
             teste: lista com ids dos usuários do conjunto teste
         """
         split = pd.DataFrame(
             {
-                "user_id": list(treino) + list(teste),
-                "subset": ["train"] * len(treino) + ["test"] * len(teste),
+                "user_id": list(treino) + list(validacao) + list(teste),
+                "subset": ["train"] * len(treino)
+                + ["validation"] * len(validacao)
+                + ["test"] * len(teste),
             }
         )
     
@@ -140,37 +147,49 @@ class CargaService:
             split.to_sql("split", self.conn, if_exists="append", index=False)
     
     def criar_split(self) -> None:
-        """Divide os usuários, deterministicamente, em treino/teste e grava na tabela split."""
+        """Divide os usuários, deterministicamente, em treino/validação/teste e grava na tabela split.
+
+        A primeira divisão separa o teste (test_size do total, com split_seed). A segunda
+        separa a validação dentro do que sobrou (val_size do treino, com val_seed). Assim, o
+        conjunto de teste não depende da validação.
+        """
         if self._dados_ja_divididos():
             print("Split já foi realizado.")
             return
     
         user_ids = pd.read_sql("SELECT user_id FROM users ORDER BY user_id", self.conn)["user_id"]
-        treino, teste = train_test_split(user_ids, test_size=self.test_size, random_state=self.split_seed)
+        treino_total, teste = train_test_split(user_ids, test_size=self.test_size, random_state=self.split_seed)
+        treino, validacao = train_test_split(treino_total, test_size=self.val_size, random_state=self.val_seed)
     
-        self._criar_tabela_split(treino, teste)
+        self._criar_tabela_split(treino, validacao, teste)
     
-        print(f"Split realizado: {len(treino)} treino, {len(teste)} teste.")
+        print(f"Split realizado: {len(treino)} treino, {len(validacao)} validação, {len(teste)} teste.")
     
-    def carregar_notas(self, subset: str) -> pd.DataFrame:
-        """Carrega do banco as notas dos usuários de 'train' ou 'test'.
+    def carregar_notas(self, subsets: list[str]) -> pd.DataFrame:
+        """Carrega do banco as notas dos usuários de um ou mais subconjuntos.
         
         Args:
-            subset: string que referencia o subconjunto a ser buscado.
+            subsets: uma lista de 'train', 'validation' ou 'test' especificando o subconjunto
+            a ser buscado.
         
         Returns:
-            Tabela pandas com colunas user_id, movie_id e rating do subconjunto informado.
+            Tabela pandas com colunas user_id, movie_id e rating dos subconjuntos informados.
         """
+
+        if not subsets or not set(subsets) <= {"train", "validation", "test"}:
+            raise ValueError("subsets deve conter apenas 'train', 'validation' e/ou 'test'")
+
+        placeholders = ",".join("?" * len(subsets))
         return pd.read_sql(
-            """
+            f"""
             SELECT r.user_id, r.movie_id, r.rating
             FROM ratings r
             JOIN split s ON s.user_id = r.user_id
-            WHERE s.subset = ?
+            WHERE s.subset IN ({placeholders})
             ORDER BY r.user_id, r.movie_id
             """,
             self.conn,
-            params=(subset,),
+            params=tuple(subsets),
         )
     
     def carregar_generos_filmes(self) -> pd.DataFrame:
